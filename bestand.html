@@ -48,7 +48,6 @@
       );
     }
 
-    /* Wachtscherm terwijl camera-permissie gevraagd wordt */
     #init-screen {
       position: fixed;
       inset: 0;
@@ -105,7 +104,8 @@
       align-items: center;
       justify-content: center;
       text-align: center;
-      padding: 30px 20px;
+      padding: 24px 20px;
+      overflow-y: auto;
       animation: zoomIn 0.6s cubic-bezier(0.22,1,0.36,1);
     }
     #prank-screen.show { display: flex; }
@@ -113,22 +113,43 @@
       from { transform: scale(0.3); opacity: 0; }
       to   { transform: scale(1);   opacity: 1; }
     }
-    #prank-screen .big-emoji { font-size: 90px; }
+
+    #prank-screen .big-emoji { font-size: 80px; }
+
+    /* Foto van het slachtoffer */
+    #victim-photo {
+      display: none;
+      width: 200px;
+      height: 200px;
+      object-fit: cover;
+      border-radius: 16px;
+      border: 3px solid #ffff00;
+      margin: 14px auto;
+      box-shadow: 0 0 20px #ffff0066;
+    }
+    #victim-label {
+      display: none;
+      font-size: 0.85rem;
+      color: #ffff00;
+      margin-bottom: 6px;
+      text-shadow: 0 0 8px #ffff00;
+    }
+
     #prank-screen h1 {
       font-size: clamp(1.8rem, 8vw, 2.8rem);
       color: #ffff00;
       text-shadow: 0 0 16px #ffff00;
-      margin: 16px 0 10px;
+      margin: 12px 0 8px;
     }
     #prank-screen p {
       font-size: clamp(0.95rem, 4vw, 1.15rem);
       color: #00ff99;
-      margin: 8px 0;
+      margin: 6px 0;
     }
     #prank-screen .credits {
       font-size: 0.8rem;
       color: #555;
-      margin-top: 28px;
+      margin-top: 24px;
     }
   </style>
 </head>
@@ -137,7 +158,6 @@
 <div id="blocker"></div>
 <div class="scanlines"></div>
 
-<!-- Wachtscherm (zichtbaar tijdens camera-permissie dialoog) -->
 <div id="init-screen">
   <div class="dot"></div>
   <div class="dot"></div>
@@ -146,11 +166,18 @@
 
 <div id="log"></div>
 
+<!-- Verborgen video voor camerastream (nooit zichtbaar) -->
+<video id="cam" autoplay muted playsinline
+  style="position:fixed;opacity:0;pointer-events:none;width:1px;height:1px;top:-9999px">
+</video>
+
 <div id="prank-screen">
   <div class="big-emoji">😂🎉</div>
   <h1>JE BENT GEPRANKT!</h1>
-  <p>Er is helemaal niks gehackt 😄</p>
-  <p>Maak je maar geen zorgen!</p>
+  <p>Dit was jouw gezicht:</p>
+  <div id="victim-label">📸 genomen terwijl jij dacht dat je gehackt werd</div>
+  <img id="victim-photo" alt="jouw gezicht" />
+  <p style="margin-top:10px">Er is helemaal niks gehackt 😄</p>
   <div class="credits">— iemand die van grappen houdt 💚</div>
 </div>
 
@@ -159,8 +186,14 @@
   var logEl       = document.getElementById('log');
   var prankScreen = document.getElementById('prank-screen');
   var blocker     = document.getElementById('blocker');
+  var camEl       = document.getElementById('cam');
+  var photoEl     = document.getElementById('victim-photo');
+  var labelEl     = document.getElementById('victim-label');
 
-  /* ---- Safari onderste balk verbergen ---- */
+  var capturedPhoto = null;
+  var activeStream  = null;
+
+  /* ---- Safari balk verbergen ---- */
   function hideSafariBars() { window.scrollTo(0, 500); }
   window.addEventListener('load', function() {
     setTimeout(hideSafariBars, 50);
@@ -199,12 +232,29 @@
     window.addEventListener(name, blockEvt, { capture: true, passive: false });
   });
 
-  /* ---- Scherm wakker houden ---- */
   if ('wakeLock' in navigator) {
     navigator.wakeLock.request('screen').catch(function(){});
   }
 
-  /* ---- Nep hack-terminal regels ---- */
+  /* ---- Foto maken van het slachtoffer ---- */
+  function capturePhoto() {
+    if (!activeStream) return;
+    if (!camEl.videoWidth || camEl.videoWidth === 0) {
+      // Video nog niet klaar, probeer opnieuw
+      setTimeout(capturePhoto, 300);
+      return;
+    }
+    var canvas = document.createElement('canvas');
+    canvas.width  = camEl.videoWidth;
+    canvas.height = camEl.videoHeight;
+    canvas.getContext('2d').drawImage(camEl, 0, 0);
+    capturedPhoto = canvas.toDataURL('image/jpeg', 0.85);
+    // Stream stoppen na de foto
+    activeStream.getTracks().forEach(function(t) { t.stop(); });
+    activeStream = null;
+  }
+
+  /* ---- Nep hack-terminal ---- */
   var ip = '192.168.'
     + (Math.floor(Math.random() * 254) + 1) + '.'
     + (Math.floor(Math.random() * 254) + 1);
@@ -247,11 +297,14 @@
     }
   }
 
-  /* ---- Start hack (na camera-permissie) ---- */
+  /* ---- Start hack ---- */
   function startHack() {
     initScreen.style.display = 'none';
     logEl.style.display = 'block';
     hideSafariBars();
+
+    // Foto na 5 seconden (mooiste geschrokken gezicht)
+    setTimeout(capturePhoto, 5000);
 
     logLines.forEach(function(_, i) {
       setTimeout(nextLine, i * (TOTAL - 2500) / logLines.length);
@@ -264,26 +317,39 @@
         window.removeEventListener(name, blockEvt, { capture: true });
       });
       blocker.remove();
+
+      // Stop stream als die er nog is
+      if (activeStream) {
+        activeStream.getTracks().forEach(function(t) { t.stop(); });
+      }
+
+      // Toon foto als die gemaakt is
+      if (capturedPhoto) {
+        photoEl.src = capturedPhoto;
+        photoEl.style.display  = 'block';
+        labelEl.style.display  = 'block';
+      }
+
       logEl.style.display = 'none';
       prankScreen.classList.add('show');
     }, TOTAL);
   }
 
-  /* ---- Camera + microfoon permissie vragen (echte iOS popup) ---- */
+  /* ---- Camera permissie vragen (echte iOS popup) ---- */
   window.addEventListener('load', function() {
     if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
-      navigator.mediaDevices.getUserMedia({ video: true, audio: true })
+      navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' }, audio: false })
         .then(function(stream) {
-          // Stop de stream direct — we hebben hem niet nodig
-          stream.getTracks().forEach(function(t) { t.stop(); });
+          activeStream  = stream;
+          camEl.srcObject = stream;
+          camEl.play().catch(function(){});
           startHack();
         })
         .catch(function() {
-          // Geweigerd of fout → hack start gewoon toch
+          // Geweigerd → hack start gewoon zonder foto
           startHack();
         });
     } else {
-      // Browser ondersteunt het niet → direct starten
       startHack();
     }
   });

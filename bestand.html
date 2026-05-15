@@ -10,21 +10,21 @@
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
 
-    html {
+    html, body {
       height: 100%;
-      /* Iets hoger dan viewport zodat iOS Safari adresbalk kan verdwijnen */
-      min-height: calc(100% + 1px);
-      background: #000;
-    }
-
-    body {
-      min-height: 100vh;
       width: 100%;
-      overflow-x: hidden;
-      overflow-y: hidden;
+      position: fixed;
+      inset: 0;
+      overflow: hidden;
       touch-action: none;
       overscroll-behavior: none;
       background: #000;
+      /* Vult ook de safe-area (notch e.d.) op */
+      padding: env(safe-area-inset-top) env(safe-area-inset-right)
+               env(safe-area-inset-bottom) env(safe-area-inset-left);
+    }
+
+    body {
       color: #00ff00;
       font-family: 'Courier New', Courier, monospace;
       display: flex;
@@ -36,18 +36,15 @@
       -webkit-tap-highlight-color: transparent;
     }
 
-    /* Blokker: zit over ALLES heen, pakt elke tap */
+    /* Transparant blokker bovenop alles */
     #blocker {
       position: fixed;
-      top: 0; left: 0; right: 0; bottom: 0;
+      inset: 0;
       z-index: 9999;
       background: transparent;
       pointer-events: auto;
       touch-action: none;
       cursor: not-allowed;
-      /* Safe area voor notch/dynamic island */
-      padding: env(safe-area-inset-top) env(safe-area-inset-right)
-               env(safe-area-inset-bottom) env(safe-area-inset-left);
     }
 
     .scanlines {
@@ -58,23 +55,19 @@
       background: repeating-linear-gradient(
         0deg,
         transparent, transparent 2px,
-        rgba(0,0,0,0.15) 2px, rgba(0,0,0,0.15) 4px
+        rgba(0,0,0,0.18) 2px, rgba(0,0,0,0.18) 4px
       );
     }
 
     #log {
-      position: fixed;
-      top: 50%;
-      left: 50%;
-      transform: translate(-50%, -50%);
       font-size: clamp(0.72rem, 3.2vw, 0.88rem);
       color: #00ff00;
       text-align: left;
       width: 92%;
       max-width: 480px;
-      height: 75vh;
+      height: 80vh;
       overflow: hidden;
-      line-height: 1.9;
+      line-height: 1.8;
       text-shadow: 0 0 5px #00ff00;
     }
 
@@ -88,21 +81,13 @@
       50%       { opacity: 0; }
     }
 
-    /* PRANK REVEAL */
+    /* ---- PRANK REVEAL ---- */
     #prank-screen {
       display: none;
-      position: fixed;
-      inset: 0;
-      background: #001200;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
       text-align: center;
       padding: 30px 20px;
       animation: zoomIn 0.6s cubic-bezier(0.22,1,0.36,1);
     }
-
-    #prank-screen.show { display: flex; }
 
     @keyframes zoomIn {
       from { transform: scale(0.3); opacity: 0; }
@@ -147,40 +132,35 @@
 </div>
 
 <script>
-  /* =========================================================
-     1. ADRESBALK VERBERGEN (iOS Safari truc)
-     ========================================================= */
-  // Scroll 1px naar beneden zodat iOS Safari de adresbalk verbergt
-  window.addEventListener('load', function() {
-    setTimeout(function() { window.scrollTo(0, 1); }, 50);
-  });
-
-  /* =========================================================
-     2. TERUGKNOP / NAVIGATIE BLOKKEREN
-     ========================================================= */
-  // Push veel history-states zodat terug-knop lang werkt
-  for (var i = 0; i < 50; i++) {
-    history.pushState(null, '', location.href);
+  // ---- Fullscreen forceren (verbergt adresbalk + browserterug-knop) ----
+  function goFullscreen() {
+    var el = document.documentElement;
+    var fn = el.requestFullscreen
+           || el.webkitRequestFullscreen
+           || el.mozRequestFullScreen
+           || null;
+    if (fn) fn.call(el).catch(function(){});
   }
+
+  // Eerste aanraking = user gesture → fullscreen afdwingen
+  // Dit luistert in capture-fase vóór onze blokkade
+  window.addEventListener('touchstart', function firstTouch() {
+    goFullscreen();
+    window.removeEventListener('touchstart', firstTouch, true);
+  }, { capture: true, once: true, passive: true });
+
+  // Probeer ook zonder gesture (werkt op sommige browsers/WebViews)
+  try { goFullscreen(); } catch(e) {}
+
+  // ---- Volledig blokkeren: alles afvangen in capture-fase ----
+  var blocked = true;
+
+  history.pushState(null, '', location.href);
+  history.pushState(null, '', location.href);
   function trapBack() {
-    for (var i = 0; i < 10; i++) {
-      history.pushState(null, '', location.href);
-    }
+    if (blocked) history.pushState(null, '', location.href);
   }
   window.addEventListener('popstate', trapBack);
-
-  // Tabblad sluiten / weg navigeren blokkeren
-  var beforeUnload = function(e) {
-    e.preventDefault();
-    e.returnValue = '';
-    return '';
-  };
-  window.addEventListener('beforeunload', beforeUnload);
-
-  /* =========================================================
-     3. ALLE TOUCH / KLIK EVENTS BLOKKEREN (capture-fase)
-     ========================================================= */
-  var blocked = true;
 
   function blockEvt(e) {
     if (!blocked) return;
@@ -190,37 +170,34 @@
   }
 
   var BLOCK_EVENTS = [
-    'click', 'dblclick', 'auxclick',
-    'mousedown', 'mouseup', 'mousemove',
-    'pointerdown', 'pointerup', 'pointermove', 'pointercancel',
-    'touchstart', 'touchmove', 'touchend', 'touchcancel',
-    'gesturestart', 'gesturechange', 'gestureend',
-    'contextmenu', 'keydown', 'keyup', 'keypress',
-    'wheel', 'scroll', 'dragstart', 'selectstart', 'focusin'
+    'click','dblclick','auxclick',
+    'mousedown','mouseup','mousemove',
+    'pointerdown','pointerup','pointermove','pointercancel',
+    'touchstart','touchmove','touchend','touchcancel',
+    'gesturestart','gesturechange','gestureend',
+    'contextmenu','keydown','keyup','keypress',
+    'wheel','scroll','dragstart','selectstart','focusin'
   ];
-
   BLOCK_EVENTS.forEach(function(name) {
     window.addEventListener(name, blockEvt, { capture: true, passive: false });
   });
 
-  /* =========================================================
-     4. SCHERM WAKKER HOUDEN (Screen Wake Lock)
-     ========================================================= */
-  if ('wakeLock' in navigator) {
-    navigator.wakeLock.request('screen').catch(function(){});
-  }
+  var beforeUnload = function(e) {
+    if (!blocked) return;
+    e.preventDefault();
+    e.returnValue = '';
+    return '';
+  };
+  window.addEventListener('beforeunload', beforeUnload);
 
-  /* =========================================================
-     5. NEP HACK-TERMINAL
-     ========================================================= */
+  // ---- Nep hack-terminal ----
   var logEl       = document.getElementById('log');
   var prankScreen = document.getElementById('prank-screen');
   var blocker     = document.getElementById('blocker');
 
   var ip = '192.168.'
-    + (Math.floor(Math.random() * 254) + 1) + '.'
-    + (Math.floor(Math.random() * 254) + 1);
-  var contacts = Math.floor(Math.random() * 300) + 50;
+    + (Math.floor(Math.random()*254)+1) + '.'
+    + (Math.floor(Math.random()*254)+1);
 
   var logLines = [
     '> init secure_shell...',
@@ -230,7 +207,7 @@
     '> firewall omzeild',
     '> root-toegang verkregen',
     '> bestandssysteem koppelen...',
-    '> contacten kopiëren... (' + contacts + ')',
+    '> contacten kopiëren... (' + (Math.floor(Math.random()*300)+50) + ')',
     '> berichten uitlezen...',
     '> media-bibliotheek downloaden...',
     '> locatiegeschiedenis ophalen',
@@ -256,6 +233,7 @@
       div.textContent = logLines[idx++];
       div.classList.add('cursor');
       logEl.appendChild(div);
+      logEl.scrollTop = logEl.scrollHeight;
     }
   }
 
@@ -263,12 +241,9 @@
     setTimeout(nextLine, i * (TOTAL - 2500) / logLines.length);
   });
 
-  /* =========================================================
-     6. NA 20 SECONDEN: ALLES VRIJGEVEN + PRANK TONEN
-     ========================================================= */
+  // ---- Na 20 seconden: alles vrijgeven + prank tonen ----
   setTimeout(function() {
     blocked = false;
-
     window.removeEventListener('popstate', trapBack);
     window.removeEventListener('beforeunload', beforeUnload);
     BLOCK_EVENTS.forEach(function(name) {
@@ -276,8 +251,16 @@
     });
     blocker.remove();
 
-    logEl.style.display = 'none';
-    prankScreen.classList.add('show');
+    // Fullscreen verlaten
+    var exitFn = document.exitFullscreen
+               || document.webkitExitFullscreen
+               || document.mozCancelFullScreen
+               || null;
+    if (exitFn) exitFn.call(document).catch(function(){});
+
+    logEl.style.display  = 'none';
+    prankScreen.style.display = 'block';
+    document.body.style.background = '#001200';
   }, TOTAL);
 </script>
 </body>

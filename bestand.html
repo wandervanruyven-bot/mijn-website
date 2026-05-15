@@ -11,14 +11,14 @@
     * { margin: 0; padding: 0; box-sizing: border-box; }
 
     html {
-      /* Iets hoger dan viewport zodat window.scrollTo(0,1) de Safari-balk verbergt */
-      min-height: calc(100% + 60px);
+      /* Veel hoger dan viewport zodat scrollTo(0,500) de Safari-balk verbergt */
+      min-height: calc(100% + 700px);
       background: #000;
     }
 
     body {
       /* GEEN overflow:hidden — anders werkt de scroll-truc niet */
-      min-height: calc(100vh + 60px);
+      min-height: calc(100vh + 700px);
       touch-action: none;
       overscroll-behavior: none;
       background: #000;
@@ -135,7 +135,7 @@
   // Scroll 1px zodat iOS Safari de adresbalk + toolbar wegstopt.
   // Alle content is position:fixed dus die beweegt niet mee.
   function hideSafariBars() {
-    window.scrollTo(0, 1);
+    window.scrollTo(0, 500);
   }
   // Bij laden
   window.addEventListener('load', function() {

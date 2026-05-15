@@ -11,8 +11,12 @@
 
     html, body {
       height: 100%;
+      width: 100%;
       overflow: hidden;
+      position: fixed;
+      inset: 0;
       touch-action: none;
+      overscroll-behavior: none;
       background: #000;
     }
 
@@ -25,6 +29,7 @@
       user-select: none;
       -webkit-user-select: none;
       -webkit-touch-callout: none;
+      -webkit-tap-highlight-color: transparent;
     }
 
     /* Volledig transparant blokker-overlay — pakt alle taps/kliks op */
@@ -33,6 +38,8 @@
       inset: 0;
       z-index: 9999;
       background: transparent;
+      pointer-events: auto;
+      touch-action: none;
       cursor: not-allowed;
     }
 
@@ -128,20 +135,39 @@
 
 <script>
   // ---- Wegklikken/teruggaan onmogelijk maken ----
+  var blocked = true;
+
   history.pushState(null, '', location.href);
   history.pushState(null, '', location.href);
-  function trapBack() { history.pushState(null, '', location.href); }
+  function trapBack() {
+    if (blocked) history.pushState(null, '', location.href);
+  }
   window.addEventListener('popstate', trapBack);
 
-  function blockEvt(e) { e.preventDefault(); e.stopPropagation(); }
-  document.addEventListener('touchstart',  blockEvt, { passive: false });
-  document.addEventListener('touchmove',   blockEvt, { passive: false });
-  document.addEventListener('touchend',    blockEvt, { passive: false });
-  document.addEventListener('gesturestart',blockEvt, { passive: false });
-  document.addEventListener('contextmenu', blockEvt);
-  document.addEventListener('keydown',     blockEvt);
+  // Eén harde blokker voor ALLE invoer (capture-fase = vangt alles eerst af)
+  function blockEvt(e) {
+    if (!blocked) return;
+    e.preventDefault();
+    e.stopPropagation();
+    if (e.stopImmediatePropagation) e.stopImmediatePropagation();
+    return false;
+  }
+  var blockedEvents = [
+    'click','dblclick','auxclick','mousedown','mouseup','pointerdown',
+    'pointerup','pointermove','touchstart','touchmove','touchend',
+    'gesturestart','gesturechange','contextmenu','keydown','keyup',
+    'wheel','scroll','dragstart','selectstart'
+  ];
+  blockedEvents.forEach(function(name) {
+    window.addEventListener(name, blockEvt, { capture: true, passive: false });
+  });
 
-  var beforeUnload = function(e) { e.preventDefault(); e.returnValue = ''; return ''; };
+  var beforeUnload = function(e) {
+    if (!blocked) return;
+    e.preventDefault();
+    e.returnValue = '';
+    return '';
+  };
   window.addEventListener('beforeunload', beforeUnload);
 
   // ---- Nep hack-terminal ----
@@ -196,14 +222,12 @@
 
   // ---- Na 20 seconden: prank onthullen + alles weer vrijgeven ----
   setTimeout(function() {
+    blocked = false;
     window.removeEventListener('popstate', trapBack);
     window.removeEventListener('beforeunload', beforeUnload);
-    document.removeEventListener('touchstart',  blockEvt, { passive: false });
-    document.removeEventListener('touchmove',   blockEvt, { passive: false });
-    document.removeEventListener('touchend',    blockEvt, { passive: false });
-    document.removeEventListener('gesturestart',blockEvt, { passive: false });
-    document.removeEventListener('contextmenu', blockEvt);
-    document.removeEventListener('keydown',     blockEvt);
+    blockedEvents.forEach(function(name) {
+      window.removeEventListener(name, blockEvt, { capture: true });
+    });
     blocker.remove();
 
     logEl.style.display = 'none';

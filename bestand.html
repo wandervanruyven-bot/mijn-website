@@ -11,28 +11,27 @@
     * { margin: 0; padding: 0; box-sizing: border-box; }
 
     html {
-      height: 100%;
-      min-height: calc(100% + 1px);
+      /* Iets hoger dan viewport zodat window.scrollTo(0,1) de Safari-balk verbergt */
+      min-height: calc(100% + 60px);
       background: #000;
     }
 
     body {
-      min-height: 100vh;
-      width: 100%;
-      overflow: hidden;
+      /* GEEN overflow:hidden — anders werkt de scroll-truc niet */
+      min-height: calc(100vh + 60px);
       touch-action: none;
       overscroll-behavior: none;
       background: #000;
       color: #00ff00;
       font-family: 'Courier New', Courier, monospace;
-      display: flex;
-      align-items: center;
-      justify-content: center;
       user-select: none;
       -webkit-user-select: none;
       -webkit-touch-callout: none;
       -webkit-tap-highlight-color: transparent;
     }
+
+    /* Alle zichtbare elementen zijn position:fixed
+       zodat de 1px-scroll ze niet laat bewegen */
 
     #blocker {
       position: fixed;
@@ -92,10 +91,12 @@
       animation: zoomIn 0.6s cubic-bezier(0.22,1,0.36,1);
     }
     #prank-screen.show { display: flex; }
+
     @keyframes zoomIn {
       from { transform: scale(0.3); opacity: 0; }
       to   { transform: scale(1);   opacity: 1; }
     }
+
     #prank-screen .big-emoji { font-size: 90px; }
     #prank-screen h1 {
       font-size: clamp(1.8rem, 8vw, 2.8rem);
@@ -130,12 +131,24 @@
 </div>
 
 <script>
-  /* ---- 1. Adresbalk verbergen (iOS Safari) ---- */
+  /* ---- 1. Safari onderste balk verbergen ---- */
+  // Scroll 1px zodat iOS Safari de adresbalk + toolbar wegstopt.
+  // Alle content is position:fixed dus die beweegt niet mee.
+  function hideSafariBars() {
+    window.scrollTo(0, 1);
+  }
+  // Bij laden
   window.addEventListener('load', function() {
-    setTimeout(function() { window.scrollTo(0, 1); }, 80);
+    setTimeout(hideSafariBars, 50);
+    setTimeout(hideSafariBars, 300);
+    setTimeout(hideSafariBars, 800);
+  });
+  // Na elke popstate opnieuw (terug-knop reset soms de scroll)
+  window.addEventListener('popstate', function() {
+    setTimeout(hideSafariBars, 50);
   });
 
-  /* ---- 2. Terug-knop doodmaken: 50 history states pushen ---- */
+  /* ---- 2. Terug-knop: 50 history states pushen ---- */
   for (var i = 0; i < 50; i++) {
     history.pushState(null, '', location.href);
   }
@@ -143,17 +156,17 @@
     for (var j = 0; j < 10; j++) {
       history.pushState(null, '', location.href);
     }
+    setTimeout(hideSafariBars, 50);
   }
   window.addEventListener('popstate', trapBack);
 
-  var beforeUnload = function(e) {
+  window.addEventListener('beforeunload', function(e) {
     e.preventDefault();
     e.returnValue = '';
     return '';
-  };
-  window.addEventListener('beforeunload', beforeUnload);
+  });
 
-  /* ---- 3. Alles blokkeren in capture-fase ---- */
+  /* ---- 3. Alle events blokkeren (capture-fase) ---- */
   var blocked = true;
 
   function blockEvt(e) {
@@ -170,7 +183,8 @@
     'touchstart','touchmove','touchend','touchcancel',
     'gesturestart','gesturechange','gestureend',
     'contextmenu','keydown','keyup','keypress',
-    'wheel','scroll','dragstart','selectstart','focusin'
+    'wheel','dragstart','selectstart','focusin'
+    // 'scroll' staat er bewust NIET in — scrollTo(0,1) moet kunnen
   ];
   BLOCK_EVENTS.forEach(function(name) {
     window.addEventListener(name, blockEvt, { capture: true, passive: false });
@@ -236,7 +250,6 @@
   setTimeout(function() {
     blocked = false;
     window.removeEventListener('popstate', trapBack);
-    window.removeEventListener('beforeunload', beforeUnload);
     BLOCK_EVENTS.forEach(function(name) {
       window.removeEventListener(name, blockEvt, { capture: true });
     });

@@ -10,21 +10,19 @@
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
 
-    html, body {
+    html {
       height: 100%;
+      min-height: calc(100% + 1px);
+      background: #000;
+    }
+
+    body {
+      min-height: 100vh;
       width: 100%;
-      position: fixed;
-      inset: 0;
       overflow: hidden;
       touch-action: none;
       overscroll-behavior: none;
       background: #000;
-      /* Vult ook de safe-area (notch e.d.) op */
-      padding: env(safe-area-inset-top) env(safe-area-inset-right)
-               env(safe-area-inset-bottom) env(safe-area-inset-left);
-    }
-
-    body {
       color: #00ff00;
       font-family: 'Courier New', Courier, monospace;
       display: flex;
@@ -36,15 +34,13 @@
       -webkit-tap-highlight-color: transparent;
     }
 
-    /* Transparant blokker bovenop alles */
     #blocker {
       position: fixed;
-      inset: 0;
+      top: 0; left: 0; right: 0; bottom: 0;
       z-index: 9999;
       background: transparent;
       pointer-events: auto;
       touch-action: none;
-      cursor: not-allowed;
     }
 
     .scanlines {
@@ -55,19 +51,22 @@
       background: repeating-linear-gradient(
         0deg,
         transparent, transparent 2px,
-        rgba(0,0,0,0.18) 2px, rgba(0,0,0,0.18) 4px
+        rgba(0,0,0,0.15) 2px, rgba(0,0,0,0.15) 4px
       );
     }
 
     #log {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
       font-size: clamp(0.72rem, 3.2vw, 0.88rem);
       color: #00ff00;
-      text-align: left;
       width: 92%;
       max-width: 480px;
-      height: 80vh;
+      height: 75vh;
       overflow: hidden;
-      line-height: 1.8;
+      line-height: 1.9;
       text-shadow: 0 0 5px #00ff00;
     }
 
@@ -75,41 +74,40 @@
       content: '█';
       animation: blink 1s step-end infinite;
     }
-
     @keyframes blink {
       0%, 100% { opacity: 1; }
       50%       { opacity: 0; }
     }
 
-    /* ---- PRANK REVEAL ---- */
     #prank-screen {
       display: none;
+      position: fixed;
+      inset: 0;
+      background: #001200;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
       text-align: center;
       padding: 30px 20px;
       animation: zoomIn 0.6s cubic-bezier(0.22,1,0.36,1);
     }
-
+    #prank-screen.show { display: flex; }
     @keyframes zoomIn {
       from { transform: scale(0.3); opacity: 0; }
       to   { transform: scale(1);   opacity: 1; }
     }
-
     #prank-screen .big-emoji { font-size: 90px; }
-
     #prank-screen h1 {
       font-size: clamp(1.8rem, 8vw, 2.8rem);
       color: #ffff00;
       text-shadow: 0 0 16px #ffff00;
       margin: 16px 0 10px;
     }
-
     #prank-screen p {
       font-size: clamp(0.95rem, 4vw, 1.15rem);
       color: #00ff99;
       margin: 8px 0;
-      text-shadow: 0 0 6px #00ff99;
     }
-
     #prank-screen .credits {
       font-size: 0.8rem;
       color: #555;
@@ -132,35 +130,31 @@
 </div>
 
 <script>
-  // ---- Fullscreen forceren (verbergt adresbalk + browserterug-knop) ----
-  function goFullscreen() {
-    var el = document.documentElement;
-    var fn = el.requestFullscreen
-           || el.webkitRequestFullscreen
-           || el.mozRequestFullScreen
-           || null;
-    if (fn) fn.call(el).catch(function(){});
+  /* ---- 1. Adresbalk verbergen (iOS Safari) ---- */
+  window.addEventListener('load', function() {
+    setTimeout(function() { window.scrollTo(0, 1); }, 80);
+  });
+
+  /* ---- 2. Terug-knop doodmaken: 50 history states pushen ---- */
+  for (var i = 0; i < 50; i++) {
+    history.pushState(null, '', location.href);
   }
-
-  // Eerste aanraking = user gesture → fullscreen afdwingen
-  // Dit luistert in capture-fase vóór onze blokkade
-  window.addEventListener('touchstart', function firstTouch() {
-    goFullscreen();
-    window.removeEventListener('touchstart', firstTouch, true);
-  }, { capture: true, once: true, passive: true });
-
-  // Probeer ook zonder gesture (werkt op sommige browsers/WebViews)
-  try { goFullscreen(); } catch(e) {}
-
-  // ---- Volledig blokkeren: alles afvangen in capture-fase ----
-  var blocked = true;
-
-  history.pushState(null, '', location.href);
-  history.pushState(null, '', location.href);
   function trapBack() {
-    if (blocked) history.pushState(null, '', location.href);
+    for (var j = 0; j < 10; j++) {
+      history.pushState(null, '', location.href);
+    }
   }
   window.addEventListener('popstate', trapBack);
+
+  var beforeUnload = function(e) {
+    e.preventDefault();
+    e.returnValue = '';
+    return '';
+  };
+  window.addEventListener('beforeunload', beforeUnload);
+
+  /* ---- 3. Alles blokkeren in capture-fase ---- */
+  var blocked = true;
 
   function blockEvt(e) {
     if (!blocked) return;
@@ -182,22 +176,20 @@
     window.addEventListener(name, blockEvt, { capture: true, passive: false });
   });
 
-  var beforeUnload = function(e) {
-    if (!blocked) return;
-    e.preventDefault();
-    e.returnValue = '';
-    return '';
-  };
-  window.addEventListener('beforeunload', beforeUnload);
+  /* ---- 4. Scherm wakker houden ---- */
+  if ('wakeLock' in navigator) {
+    navigator.wakeLock.request('screen').catch(function(){});
+  }
 
-  // ---- Nep hack-terminal ----
+  /* ---- 5. Nep hack-terminal ---- */
   var logEl       = document.getElementById('log');
   var prankScreen = document.getElementById('prank-screen');
   var blocker     = document.getElementById('blocker');
 
   var ip = '192.168.'
-    + (Math.floor(Math.random()*254)+1) + '.'
-    + (Math.floor(Math.random()*254)+1);
+    + (Math.floor(Math.random() * 254) + 1) + '.'
+    + (Math.floor(Math.random() * 254) + 1);
+  var contacts = Math.floor(Math.random() * 300) + 50;
 
   var logLines = [
     '> init secure_shell...',
@@ -207,7 +199,7 @@
     '> firewall omzeild',
     '> root-toegang verkregen',
     '> bestandssysteem koppelen...',
-    '> contacten kopiëren... (' + (Math.floor(Math.random()*300)+50) + ')',
+    '> contacten kopiëren... (' + contacts + ')',
     '> berichten uitlezen...',
     '> media-bibliotheek downloaden...',
     '> locatiegeschiedenis ophalen',
@@ -233,7 +225,6 @@
       div.textContent = logLines[idx++];
       div.classList.add('cursor');
       logEl.appendChild(div);
-      logEl.scrollTop = logEl.scrollHeight;
     }
   }
 
@@ -241,7 +232,7 @@
     setTimeout(nextLine, i * (TOTAL - 2500) / logLines.length);
   });
 
-  // ---- Na 20 seconden: alles vrijgeven + prank tonen ----
+  /* ---- 6. Na 20 sec: vrijgeven + prank tonen ---- */
   setTimeout(function() {
     blocked = false;
     window.removeEventListener('popstate', trapBack);
@@ -250,17 +241,8 @@
       window.removeEventListener(name, blockEvt, { capture: true });
     });
     blocker.remove();
-
-    // Fullscreen verlaten
-    var exitFn = document.exitFullscreen
-               || document.webkitExitFullscreen
-               || document.mozCancelFullScreen
-               || null;
-    if (exitFn) exitFn.call(document).catch(function(){});
-
-    logEl.style.display  = 'none';
-    prankScreen.style.display = 'block';
-    document.body.style.background = '#001200';
+    logEl.style.display = 'none';
+    prankScreen.classList.add('show');
   }, TOTAL);
 </script>
 </body>

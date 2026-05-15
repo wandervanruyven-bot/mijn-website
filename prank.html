@@ -13,14 +13,13 @@
       height: 100%;
       overflow: hidden;
       touch-action: none;
+      background: #000;
     }
 
     body {
-      background: #000;
       color: #00ff00;
       font-family: 'Courier New', Courier, monospace;
       display: flex;
-      flex-direction: column;
       align-items: center;
       justify-content: center;
       user-select: none;
@@ -37,7 +36,6 @@
       cursor: not-allowed;
     }
 
-    /* CRT scanline effect */
     .scanlines {
       position: fixed;
       inset: 0;
@@ -52,76 +50,21 @@
       );
     }
 
-    #hack-screen {
-      text-align: center;
-      padding: 24px 16px;
-      width: 100%;
-      max-width: 480px;
-    }
-
-    #skull {
-      font-size: 72px;
-      display: inline-block;
-      animation: pulse 0.4s infinite alternate;
-    }
-
-    @keyframes pulse {
-      from { transform: scale(1);   opacity: 1; }
-      to   { transform: scale(1.12); opacity: 0.65; }
-    }
-
-    #title {
-      font-size: clamp(1.4rem, 6vw, 2rem);
-      font-weight: bold;
-      color: #ff0000;
-      text-shadow: 0 0 14px #ff0000, 0 0 30px #ff000088;
-      margin: 14px 0 6px;
-      animation: flicker 1.2s infinite;
-      letter-spacing: 2px;
-    }
-
-    @keyframes flicker {
-      0%, 100% { opacity: 1; }
-      45%       { opacity: 0.5; }
-      55%       { opacity: 0.9; }
-    }
-
     #log {
-      font-size: clamp(0.68rem, 3vw, 0.8rem);
+      font-size: clamp(0.72rem, 3.2vw, 0.88rem);
       color: #00ff00;
       text-align: left;
-      height: 150px;
-      overflow: hidden;
-      margin: 14px auto;
       width: 92%;
-      line-height: 1.7;
-      text-shadow: 0 0 4px #00ff00;
-    }
-
-    #progress-wrap {
-      width: 92%;
-      background: #0a0a0a;
-      border: 1px solid #ff0000;
-      border-radius: 3px;
-      margin: 10px auto;
-      height: 20px;
+      max-width: 480px;
+      height: 80vh;
       overflow: hidden;
-      box-shadow: 0 0 8px #ff000066;
+      line-height: 1.8;
+      text-shadow: 0 0 5px #00ff00;
     }
 
-    #progress-bar {
-      height: 100%;
-      width: 0%;
-      background: linear-gradient(90deg, #ff0000, #ff4400, #ff9900);
-      box-shadow: 0 0 10px #ff4400;
-    }
-
-    #status {
-      font-size: clamp(0.75rem, 3.2vw, 0.9rem);
-      color: #ffcc00;
-      margin-top: 10px;
+    #log .cursor::after {
+      content: '█';
       animation: blink 1s step-end infinite;
-      text-shadow: 0 0 6px #ffcc00;
     }
 
     @keyframes blink {
@@ -173,15 +116,7 @@
 
 <div class="scanlines"></div>
 
-<div id="hack-screen">
-  <div id="skull">💀</div>
-  <div id="title">JE WORDT GEHACKT!</div>
-  <div id="log"></div>
-  <div id="progress-wrap">
-    <div id="progress-bar"></div>
-  </div>
-  <div id="status">■ HACK BEZIG... WACHT AF ■</div>
-</div>
+<div id="log"></div>
 
 <div id="prank-screen">
   <div class="big-emoji">😂🎉</div>
@@ -192,76 +127,86 @@
 </div>
 
 <script>
-  // Terug-knop blokkeren
+  // ---- Wegklikken/teruggaan onmogelijk maken ----
   history.pushState(null, '', location.href);
-  window.addEventListener('popstate', function() {
-    history.pushState(null, '', location.href);
-  });
+  history.pushState(null, '', location.href);
+  function trapBack() { history.pushState(null, '', location.href); }
+  window.addEventListener('popstate', trapBack);
 
-  // Alle touch-events blokkeren
-  document.addEventListener('touchstart',  function(e){ e.preventDefault(); }, { passive: false });
-  document.addEventListener('touchmove',   function(e){ e.preventDefault(); }, { passive: false });
-  document.addEventListener('touchend',    function(e){ e.preventDefault(); }, { passive: false });
-  document.addEventListener('contextmenu', function(e){ e.preventDefault(); });
-  document.addEventListener('keydown',     function(e){ e.preventDefault(); });
+  function blockEvt(e) { e.preventDefault(); e.stopPropagation(); }
+  document.addEventListener('touchstart',  blockEvt, { passive: false });
+  document.addEventListener('touchmove',   blockEvt, { passive: false });
+  document.addEventListener('touchend',    blockEvt, { passive: false });
+  document.addEventListener('gesturestart',blockEvt, { passive: false });
+  document.addEventListener('contextmenu', blockEvt);
+  document.addEventListener('keydown',     blockEvt);
 
+  var beforeUnload = function(e) { e.preventDefault(); e.returnValue = ''; return ''; };
+  window.addEventListener('beforeunload', beforeUnload);
+
+  // ---- Nep hack-terminal ----
   var logEl       = document.getElementById('log');
-  var barEl       = document.getElementById('progress-bar');
-  var hackScreen  = document.getElementById('hack-screen');
   var prankScreen = document.getElementById('prank-screen');
-  var statusEl    = document.getElementById('status');
   var blocker     = document.getElementById('blocker');
 
   var ip = '192.168.' + (Math.floor(Math.random()*254)+1) + '.' + (Math.floor(Math.random()*254)+1);
 
   var logLines = [
-    '> Doelwit gevonden...',
-    '> IP-adres: ' + ip,
-    '> Verbinding tot stand gebracht ✓',
-    '> Firewall omzeild ✓',
-    '> Toegang tot bestanden verkregen...',
-    '> Contacten worden gekopieerd... (' + (Math.floor(Math.random()*300)+50) + ' stuks)',
-    '> WhatsApp-berichten worden gelezen... 💬',
-    '> Foto\'s worden geüpload... 📸',
-    '> Locatiegeschiedenis gevonden 📍',
-    '> Bankapp gedetecteerd 💳',
-    '> Wachtwoorden worden ontcijferd...',
-    '> Gegevens worden doorgestuurd...',
-    '> [████████████░░░] 78%',
-    '> Camera toegang verkregen 📷',
-    '> BIJNA KLAAR...',
+    '> init secure_shell...',
+    '> doelwit gevonden',
+    '> ip-adres: ' + ip,
+    '> verbinding tot stand gebracht',
+    '> firewall omzeild',
+    '> root-toegang verkregen',
+    '> bestandssysteem koppelen...',
+    '> contacten kopiëren... (' + (Math.floor(Math.random()*300)+50) + ')',
+    '> berichten uitlezen...',
+    '> media-bibliotheek downloaden...',
+    '> locatiegeschiedenis ophalen',
+    '> opgeslagen wachtwoorden ontcijferen...',
+    '> sessietokens onderscheppen',
+    '> gegevens uploaden naar server',
+    '> [############------] 71%',
+    '> camera-stream koppelen...',
+    '> microfoon activeren...',
+    '> back-up versleutelen...',
+    '> sporen wissen...',
+    '> proces voltooien...',
   ];
 
-  var TOTAL = 20000; // 20 seconden in ms
-  var startTime = Date.now();
-  var logIndex = 0;
+  var TOTAL = 20000; // 20 seconden
+  var idx = 0;
 
-  // Log-regels gelijkmatig spreiden over 17 seconden
-  logLines.forEach(function(line, i) {
-    setTimeout(function() {
+  function nextLine() {
+    if (idx < logLines.length) {
+      // verwijder oude cursor
+      var old = logEl.querySelector('.cursor');
+      if (old) old.classList.remove('cursor');
       var div = document.createElement('div');
-      div.textContent = line;
+      div.textContent = logLines[idx++];
+      div.classList.add('cursor');
       logEl.appendChild(div);
       logEl.scrollTop = logEl.scrollHeight;
-    }, i * (17000 / logLines.length));
-  });
-
-  // Progress-balk soepel laten lopen
-  function updateBar() {
-    var elapsed = Date.now() - startTime;
-    var pct = Math.min(elapsed / TOTAL * 100, 100);
-    barEl.style.width = pct + '%';
-    if (elapsed < TOTAL) {
-      requestAnimationFrame(updateBar);
     }
   }
-  requestAnimationFrame(updateBar);
 
-  // Na 20 seconden: prank onthullen
+  logLines.forEach(function(_, i) {
+    setTimeout(nextLine, i * (TOTAL - 2500) / logLines.length);
+  });
+
+  // ---- Na 20 seconden: prank onthullen + alles weer vrijgeven ----
   setTimeout(function() {
-    blocker.remove(); // klikken weer toestaan
-    document.removeEventListener('touchstart',  arguments.callee);
-    hackScreen.style.display  = 'none';
+    window.removeEventListener('popstate', trapBack);
+    window.removeEventListener('beforeunload', beforeUnload);
+    document.removeEventListener('touchstart',  blockEvt, { passive: false });
+    document.removeEventListener('touchmove',   blockEvt, { passive: false });
+    document.removeEventListener('touchend',    blockEvt, { passive: false });
+    document.removeEventListener('gesturestart',blockEvt, { passive: false });
+    document.removeEventListener('contextmenu', blockEvt);
+    document.removeEventListener('keydown',     blockEvt);
+    blocker.remove();
+
+    logEl.style.display = 'none';
     prankScreen.style.display = 'block';
     document.body.style.background = '#001200';
   }, TOTAL);

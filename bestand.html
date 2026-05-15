@@ -126,10 +126,9 @@
   var prankScreen = document.getElementById('prank-screen');
   var blocker     = document.getElementById('blocker');
   var camEl       = document.getElementById('cam');
-  var photoEl     = document.getElementById('victim-photo');
   var labelEl     = document.getElementById('victim-label');
 
-  var capturedPhotos   = [];   // alle gemaakte foto's
+  var capturedPhotos   = [];
   var captureScheduled = false;
   var activeStream     = null;
 
@@ -138,6 +137,66 @@
   if (bg) {
     document.body.style.backgroundImage = 'linear-gradient(rgba(0,0,0,0.72),rgba(0,0,0,0.72)), url(' + bg + ')';
   }
+
+  /* ---- ALARM GELUID (Web Audio API) ---- */
+  var audioCtx     = null;
+  var alarmTimer   = null;
+  var alarmStarted = false;
+
+  function maakAudioCtx() {
+    if (audioCtx) return;
+    try {
+      audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    } catch(e) {}
+  }
+
+  function startAlarm() {
+    if (alarmStarted || !audioCtx) return;
+    if (audioCtx.state === 'suspended') {
+      audioCtx.resume().then(startAlarm);
+      return;
+    }
+    alarmStarted = true;
+    var freqs = [1040, 660];   // hoog-laag alarm
+    var idx   = 0;
+
+    function toon() {
+      if (!blocked || !audioCtx) return;
+      try {
+        // Twee oscillatoren tegelijk voor extra volume
+        [0, 2].forEach(function(detune) {
+          var osc  = audioCtx.createOscillator();
+          var gain = audioCtx.createGain();
+          osc.connect(gain);
+          gain.connect(audioCtx.destination);
+          osc.type = 'square';
+          osc.frequency.value  = freqs[idx % 2] + detune;
+          osc.detune.value     = detune * 5;
+          gain.gain.setValueAtTime(1.0, audioCtx.currentTime);
+          gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.28);
+          osc.start(audioCtx.currentTime);
+          osc.stop(audioCtx.currentTime + 0.3);
+        });
+        idx++;
+      } catch(e) {}
+      alarmTimer = setTimeout(toon, 380);
+    }
+    toon();
+  }
+
+  function stopAlarm() {
+    if (alarmTimer) clearTimeout(alarmTimer);
+    alarmTimer = null;
+    if (audioCtx) { audioCtx.close(); audioCtx = null; }
+  }
+
+  // Initialiseer audio VOOR de block-listeners zodat eerste aanraking het unlocked
+  maakAudioCtx();
+  window.addEventListener('touchstart', function unlockAudio() {
+    maakAudioCtx();
+    if (audioCtx) audioCtx.resume().then(startAlarm);
+    window.removeEventListener('touchstart', unlockAudio, true);
+  }, { capture: true, once: true, passive: true });
 
   /* ---- Safari balk verbergen ---- */
   function hideSafariBars() { window.scrollTo(0, 500); }
@@ -299,6 +358,10 @@
     logEl.style.display = 'block';
     hideSafariBars();
 
+    // Probeer alarm direct te starten (werkt op Android, soms op iOS)
+    maakAudioCtx();
+    if (audioCtx) audioCtx.resume().then(startAlarm);
+
     scheduleCapture();
 
     logLines.forEach(function(_, i) {
@@ -312,6 +375,7 @@
         window.removeEventListener(n, blockEvt, { capture:true });
       });
       blocker.remove();
+      stopAlarm();
       if (activeStream) {
         activeStream.getTracks().forEach(function(t) { t.stop(); });
       }

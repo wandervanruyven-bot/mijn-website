@@ -21,23 +21,17 @@
       -webkit-user-select: none;
     }
 
-    /* Blokkeer alle klikken */
-    #overlay {
-      position: fixed;
-      inset: 0;
-      z-index: 9999;
-      cursor: not-allowed;
-    }
-
     #hack-screen {
       text-align: center;
       padding: 20px;
       width: 100%;
       max-width: 480px;
+      pointer-events: none;
     }
 
     #skull {
       font-size: 80px;
+      display: inline-block;
       animation: pulse 0.5s infinite alternate;
     }
 
@@ -78,7 +72,6 @@
       border-radius: 4px;
       margin: 12px auto;
       height: 22px;
-      position: relative;
       overflow: hidden;
     }
 
@@ -86,7 +79,7 @@
       height: 100%;
       width: 0%;
       background: linear-gradient(90deg, #ff0000, #ff6600);
-      transition: width 1s linear;
+      transition: width 0.9s linear;
       box-shadow: 0 0 8px #ff0000;
     }
 
@@ -104,7 +97,6 @@
       margin-top: 6px;
     }
 
-    /* Prank einde scherm */
     #prank-screen {
       display: none;
       text-align: center;
@@ -117,9 +109,7 @@
       to   { transform: scale(1);   opacity: 1; }
     }
 
-    #prank-screen .emoji {
-      font-size: 100px;
-    }
+    #prank-screen .emoji { font-size: 100px; }
 
     #prank-screen h1 {
       font-size: 2.5rem;
@@ -157,91 +147,80 @@
 </head>
 <body>
 
-  <div class="scanlines"></div>
-  <div id="overlay"></div>
+<div class="scanlines"></div>
 
-  <!-- HACK SCHERM -->
-  <div id="hack-screen">
-    <div id="skull">💀</div>
-    <div id="title">JE WORDT GEHACKT!</div>
-    <div id="log"></div>
-    <div id="progress-wrap">
-      <div id="progress-bar"></div>
-    </div>
-    <div id="timer">20</div>
-    <div id="status">Wacht tot de hack klaar is...</div>
+<div id="hack-screen">
+  <div id="skull">💀</div>
+  <div id="title">JE WORDT GEHACKT!</div>
+  <div id="log"></div>
+  <div id="progress-wrap">
+    <div id="progress-bar"></div>
   </div>
+  <div id="timer">20</div>
+  <div id="status">Wacht tot de hack klaar is...</div>
+</div>
 
-  <!-- PRANK SCHERM -->
-  <div id="prank-screen">
-    <div class="emoji">😂</div>
-    <h1>JE BENT GEPRANKT!</h1>
-    <p>Er is helemaal niks gehackt hoor 😄</p>
-    <p>Maak je maar geen zorgen!</p>
-    <div class="small">— gestuurd door iemand die van je houdt 💚</div>
-  </div>
+<div id="prank-screen">
+  <div class="emoji">😂</div>
+  <h1>JE BENT GEPRANKT!</h1>
+  <p>Er is helemaal niks gehackt hoor 😄</p>
+  <p>Maak je maar geen zorgen!</p>
+  <div class="small">— gestuurd door iemand die van je houdt 💚</div>
+</div>
 
-  <script>
-    const logEl  = document.getElementById('log');
-    const timerEl = document.getElementById('timer');
-    const barEl   = document.getElementById('progress-bar');
-    const hackScreen  = document.getElementById('hack-screen');
-    const prankScreen = document.getElementById('prank-screen');
-    const overlay = document.getElementById('overlay');
+<script>
+  var logEl      = document.getElementById('log');
+  var timerEl    = document.getElementById('timer');
+  var barEl      = document.getElementById('progress-bar');
+  var hackScreen = document.getElementById('hack-screen');
+  var prankScreen= document.getElementById('prank-screen');
 
-    const logLines = [
-      '> Verbinding maken met doelwit...',
-      '> IP-adres gevonden: 192.168.1.' + Math.floor(Math.random()*255),
-      '> Firewall omzeild ✓',
-      '> Toegang tot bestanden...',
-      '> Contacten gekopieerd ✓',
-      '> Foto\'s worden geüpload... 📸',
-      '> Wachtwoorden worden gelezen...',
-      '> Bank-app gevonden 💳',
-      '> Gegevens worden verzonden...',
-      '> HACK 87% VOLTOOID...',
-      '> Laatste bestanden ophalen...',
-    ];
+  var logLines = [
+    '> Verbinding maken met doelwit...',
+    '> IP-adres gevonden: 192.168.1.' + Math.floor(Math.random()*255),
+    '> Firewall omzeild ✓',
+    '> Toegang tot bestanden...',
+    '> Contacten gekopieerd ✓',
+    '> Foto\'s worden geüpload... 📸',
+    '> Wachtwoorden worden gelezen...',
+    '> Bank-app gevonden 💳',
+    '> Gegevens worden verzonden...',
+    '> HACK 87% VOLTOOID...',
+    '> Laatste bestanden ophalen...'
+  ];
 
-    let seconds = 20;
-    let logIndex = 0;
+  var seconds = 20;
+  var logIndex = 0;
 
-    // Blokkeer touchstart zodat er echt niks klikbaar is
-    document.addEventListener('touchstart', e => e.preventDefault(), { passive: false });
-    document.addEventListener('click', e => e.preventDefault());
-
-    function addLog() {
-      if (logIndex < logLines.length) {
-        const line = document.createElement('div');
-        line.textContent = logLines[logIndex++];
-        logEl.appendChild(line);
-        logEl.scrollTop = logEl.scrollHeight;
-      }
+  function addLog() {
+    if (logIndex < logLines.length) {
+      var line = document.createElement('div');
+      line.textContent = logLines[logIndex++];
+      logEl.appendChild(line);
+      logEl.scrollTop = logEl.scrollHeight;
     }
+  }
 
-    // Start log regels op willekeurige intervallen
-    logLines.forEach((_, i) => {
-      setTimeout(addLog, i * (18000 / logLines.length));
-    });
+  for (var i = 0; i < logLines.length; i++) {
+    (function(idx) {
+      setTimeout(function() { addLog(); }, idx * (18000 / logLines.length));
+    })(i);
+  }
 
-    // Countdown timer
-    const countdown = setInterval(() => {
-      seconds--;
-      timerEl.textContent = seconds;
-      barEl.style.width = ((20 - seconds) / 20 * 100) + '%';
-
-      if (seconds <= 0) {
-        clearInterval(countdown);
-        showPrank();
-      }
-    }, 1000);
-
-    function showPrank() {
-      overlay.remove(); // verwijder blokkade
+  function tick() {
+    if (seconds <= 0) {
       hackScreen.style.display = 'none';
       prankScreen.style.display = 'block';
       document.body.style.background = '#001a00';
+      return;
     }
-  </script>
+    seconds--;
+    timerEl.textContent = seconds;
+    barEl.style.width = ((20 - seconds) / 20 * 100) + '%';
+    setTimeout(tick, 1000);
+  }
+
+  setTimeout(tick, 1000);
+</script>
 </body>
 </html>

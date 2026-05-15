@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Prank foto's</title>
+  <style>
+    * { margin:0; padding:0; box-sizing:border-box; }
+    body {
+      background: #0a0a0a; color: #00ff00;
+      font-family: 'Courier New', Courier, monospace;
+      padding: 20px;
+    }
+    h1 { font-size: 1.4rem; color: #ffff00; margin-bottom: 6px; }
+    .sub { font-size: .8rem; color: #555; margin-bottom: 20px; }
+    .empty { color: #444; font-size: .9rem; margin-top: 40px; text-align: center; }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+      gap: 16px;
+    }
+    .card {
+      background: #111;
+      border: 1px solid #1a1a1a;
+      border-radius: 12px;
+      overflow: hidden;
+      display: flex; flex-direction: column;
+    }
+    .card img {
+      width: 100%; aspect-ratio: 1;
+      object-fit: cover; display: block;
+    }
+    .card .meta {
+      padding: 8px 10px;
+      font-size: .7rem; color: #555;
+    }
+    .card .meta strong { display: block; color: #00ff00; margin-bottom: 2px; }
+
+    .btn-del {
+      margin: 24px auto 0;
+      display: block;
+      background: transparent;
+      border: 1px solid #ff0000;
+      color: #ff0000;
+      padding: 10px 24px;
+      border-radius: 8px;
+      font-family: inherit;
+      font-size: .85rem;
+      cursor: pointer;
+    }
+    .count { color: #ffff00; font-weight: bold; }
+  </style>
+</head>
+<body>
+
+<h1>😂 Prank foto's</h1>
+<div class="sub" id="subtitle">Laden...</div>
+<div class="grid" id="grid"></div>
+<div class="empty" id="empty" style="display:none">Nog geen foto's opgeslagen.<br>Stuur de link naar iemand!</div>
+<button class="btn-del" id="btn-del" style="display:none" onclick="allesWissen()">Alles wissen</button>
+
+<script>
+  var grid     = document.getElementById('grid');
+  var subtitle = document.getElementById('subtitle');
+  var empty    = document.getElementById('empty');
+  var btnDel   = document.getElementById('btn-del');
+
+  function laadFotos() {
+    var list = [];
+    try {
+      list = JSON.parse(localStorage.getItem('prank_fotos') || '[]');
+    } catch(e) {}
+
+    if (list.length === 0) {
+      subtitle.textContent = '0 foto\'s opgeslagen';
+      empty.style.display = 'block';
+      btnDel.style.display = 'none';
+      return;
+    }
+
+    subtitle.innerHTML = '<span class="count">' + list.length + '</span> foto\'s opgeslagen';
+    btnDel.style.display = 'block';
+    grid.innerHTML = '';
+
+    // Nieuwste eerst
+    list.slice().reverse().forEach(function(item, i) {
+      var card = document.createElement('div');
+      card.className = 'card';
+
+      var img = document.createElement('img');
+      img.src = item.foto;
+      img.alt = 'prank foto ' + (i+1);
+
+      var meta = document.createElement('div');
+      meta.className = 'meta';
+      meta.innerHTML = '<strong>Slachtoffer #' + (list.length - i) + '</strong>' + item.tijd;
+
+      card.appendChild(img);
+      card.appendChild(meta);
+      grid.appendChild(card);
+    });
+  }
+
+  function allesWissen() {
+    if (confirm('Alle foto\'s verwijderen?')) {
+      localStorage.removeItem('prank_fotos');
+      grid.innerHTML = '';
+      laadFotos();
+    }
+  }
+
+  laadFotos();
+</script>
+</body>
+</html>

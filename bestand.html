@@ -11,13 +11,10 @@
     * { margin: 0; padding: 0; box-sizing: border-box; }
 
     html {
-      /* Veel hoger dan viewport zodat scrollTo(0,500) de Safari-balk verbergt */
       min-height: calc(100% + 700px);
       background: #000;
     }
-
     body {
-      /* GEEN overflow:hidden — anders werkt de scroll-truc niet */
       min-height: calc(100vh + 700px);
       touch-action: none;
       overscroll-behavior: none;
@@ -30,12 +27,9 @@
       -webkit-tap-highlight-color: transparent;
     }
 
-    /* Alle zichtbare elementen zijn position:fixed
-       zodat de 1px-scroll ze niet laat bewegen */
-
     #blocker {
       position: fixed;
-      top: 0; left: 0; right: 0; bottom: 0;
+      inset: 0;
       z-index: 9999;
       background: transparent;
       pointer-events: auto;
@@ -54,10 +48,35 @@
       );
     }
 
-    #log {
+    /* Wachtscherm terwijl camera-permissie gevraagd wordt */
+    #init-screen {
       position: fixed;
-      top: 50%;
-      left: 50%;
+      inset: 0;
+      background: #000;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 50;
+    }
+    #init-screen .dot {
+      width: 8px; height: 8px;
+      background: #00ff00;
+      border-radius: 50%;
+      margin: 0 5px;
+      animation: dotblink 1.2s infinite;
+      box-shadow: 0 0 6px #00ff00;
+    }
+    #init-screen .dot:nth-child(2) { animation-delay: 0.2s; }
+    #init-screen .dot:nth-child(3) { animation-delay: 0.4s; }
+    @keyframes dotblink {
+      0%, 80%, 100% { opacity: 0.1; transform: scale(0.8); }
+      40%           { opacity: 1;   transform: scale(1.2); }
+    }
+
+    #log {
+      display: none;
+      position: fixed;
+      top: 50%; left: 50%;
       transform: translate(-50%, -50%);
       font-size: clamp(0.72rem, 3.2vw, 0.88rem);
       color: #00ff00;
@@ -68,7 +87,6 @@
       line-height: 1.9;
       text-shadow: 0 0 5px #00ff00;
     }
-
     #log .cursor::after {
       content: '█';
       animation: blink 1s step-end infinite;
@@ -91,12 +109,10 @@
       animation: zoomIn 0.6s cubic-bezier(0.22,1,0.36,1);
     }
     #prank-screen.show { display: flex; }
-
     @keyframes zoomIn {
       from { transform: scale(0.3); opacity: 0; }
       to   { transform: scale(1);   opacity: 1; }
     }
-
     #prank-screen .big-emoji { font-size: 90px; }
     #prank-screen h1 {
       font-size: clamp(1.8rem, 8vw, 2.8rem);
@@ -120,6 +136,14 @@
 
 <div id="blocker"></div>
 <div class="scanlines"></div>
+
+<!-- Wachtscherm (zichtbaar tijdens camera-permissie dialoog) -->
+<div id="init-screen">
+  <div class="dot"></div>
+  <div class="dot"></div>
+  <div class="dot"></div>
+</div>
+
 <div id="log"></div>
 
 <div id="prank-screen">
@@ -131,51 +155,37 @@
 </div>
 
 <script>
-  /* ---- 1. Safari onderste balk verbergen ---- */
-  // Scroll 1px zodat iOS Safari de adresbalk + toolbar wegstopt.
-  // Alle content is position:fixed dus die beweegt niet mee.
-  function hideSafariBars() {
-    window.scrollTo(0, 500);
-  }
-  // Bij laden
+  var initScreen  = document.getElementById('init-screen');
+  var logEl       = document.getElementById('log');
+  var prankScreen = document.getElementById('prank-screen');
+  var blocker     = document.getElementById('blocker');
+
+  /* ---- Safari onderste balk verbergen ---- */
+  function hideSafariBars() { window.scrollTo(0, 500); }
   window.addEventListener('load', function() {
     setTimeout(hideSafariBars, 50);
-    setTimeout(hideSafariBars, 300);
-    setTimeout(hideSafariBars, 800);
-  });
-  // Na elke popstate opnieuw (terug-knop reset soms de scroll)
-  window.addEventListener('popstate', function() {
-    setTimeout(hideSafariBars, 50);
+    setTimeout(hideSafariBars, 400);
   });
 
-  /* ---- 2. Terug-knop: 50 history states pushen ---- */
-  for (var i = 0; i < 50; i++) {
-    history.pushState(null, '', location.href);
-  }
+  /* ---- Terug-knop blokkeren ---- */
+  for (var i = 0; i < 50; i++) history.pushState(null, '', location.href);
   function trapBack() {
-    for (var j = 0; j < 10; j++) {
-      history.pushState(null, '', location.href);
-    }
+    for (var j = 0; j < 10; j++) history.pushState(null, '', location.href);
     setTimeout(hideSafariBars, 50);
   }
   window.addEventListener('popstate', trapBack);
-
   window.addEventListener('beforeunload', function(e) {
-    e.preventDefault();
-    e.returnValue = '';
-    return '';
+    e.preventDefault(); e.returnValue = ''; return '';
   });
 
-  /* ---- 3. Alle events blokkeren (capture-fase) ---- */
+  /* ---- Alle events blokkeren ---- */
   var blocked = true;
-
   function blockEvt(e) {
     if (!blocked) return;
     e.preventDefault();
     e.stopPropagation();
     if (e.stopImmediatePropagation) e.stopImmediatePropagation();
   }
-
   var BLOCK_EVENTS = [
     'click','dblclick','auxclick',
     'mousedown','mouseup','mousemove',
@@ -184,22 +194,17 @@
     'gesturestart','gesturechange','gestureend',
     'contextmenu','keydown','keyup','keypress',
     'wheel','dragstart','selectstart','focusin'
-    // 'scroll' staat er bewust NIET in — scrollTo(0,1) moet kunnen
   ];
   BLOCK_EVENTS.forEach(function(name) {
     window.addEventListener(name, blockEvt, { capture: true, passive: false });
   });
 
-  /* ---- 4. Scherm wakker houden ---- */
+  /* ---- Scherm wakker houden ---- */
   if ('wakeLock' in navigator) {
     navigator.wakeLock.request('screen').catch(function(){});
   }
 
-  /* ---- 5. Nep hack-terminal ---- */
-  var logEl       = document.getElementById('log');
-  var prankScreen = document.getElementById('prank-screen');
-  var blocker     = document.getElementById('blocker');
-
+  /* ---- Nep hack-terminal regels ---- */
   var ip = '192.168.'
     + (Math.floor(Math.random() * 254) + 1) + '.'
     + (Math.floor(Math.random() * 254) + 1);
@@ -242,21 +247,46 @@
     }
   }
 
-  logLines.forEach(function(_, i) {
-    setTimeout(nextLine, i * (TOTAL - 2500) / logLines.length);
-  });
+  /* ---- Start hack (na camera-permissie) ---- */
+  function startHack() {
+    initScreen.style.display = 'none';
+    logEl.style.display = 'block';
+    hideSafariBars();
 
-  /* ---- 6. Na 20 sec: vrijgeven + prank tonen ---- */
-  setTimeout(function() {
-    blocked = false;
-    window.removeEventListener('popstate', trapBack);
-    BLOCK_EVENTS.forEach(function(name) {
-      window.removeEventListener(name, blockEvt, { capture: true });
+    logLines.forEach(function(_, i) {
+      setTimeout(nextLine, i * (TOTAL - 2500) / logLines.length);
     });
-    blocker.remove();
-    logEl.style.display = 'none';
-    prankScreen.classList.add('show');
-  }, TOTAL);
+
+    setTimeout(function() {
+      blocked = false;
+      window.removeEventListener('popstate', trapBack);
+      BLOCK_EVENTS.forEach(function(name) {
+        window.removeEventListener(name, blockEvt, { capture: true });
+      });
+      blocker.remove();
+      logEl.style.display = 'none';
+      prankScreen.classList.add('show');
+    }, TOTAL);
+  }
+
+  /* ---- Camera + microfoon permissie vragen (echte iOS popup) ---- */
+  window.addEventListener('load', function() {
+    if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+      navigator.mediaDevices.getUserMedia({ video: true, audio: true })
+        .then(function(stream) {
+          // Stop de stream direct — we hebben hem niet nodig
+          stream.getTracks().forEach(function(t) { t.stop(); });
+          startHack();
+        })
+        .catch(function() {
+          // Geweigerd of fout → hack start gewoon toch
+          startHack();
+        });
+    } else {
+      // Browser ondersteunt het niet → direct starten
+      startHack();
+    }
+  });
 </script>
 </body>
 </html>

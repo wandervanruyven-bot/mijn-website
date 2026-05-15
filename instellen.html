@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Prank instellen</title>
+  <style>
+    * { margin:0; padding:0; box-sizing:border-box; }
+    body {
+      background:#0a0a0a; color:#00ff00;
+      font-family:'Courier New',Courier,monospace;
+      min-height:100vh; display:flex; flex-direction:column;
+      align-items:center; justify-content:center; padding:24px;
+    }
+    h1 { font-size:1.4rem; color:#ffff00; margin-bottom:6px; text-align:center; }
+    p  { font-size:.85rem; color:#555; margin-bottom:24px; text-align:center; }
+
+    .kies-btn {
+      width:100%; max-width:360px;
+      background:#111; border:2px dashed #00ff00;
+      border-radius:16px; padding:32px 20px;
+      text-align:center; cursor:pointer; color:#00ff00;
+      font-family:inherit; font-size:1rem;
+      display:flex; flex-direction:column; align-items:center; gap:10px;
+    }
+    .kies-btn .icon { font-size:48px; }
+
+    #preview-wrap {
+      display:none; flex-direction:column; align-items:center;
+      width:100%; max-width:360px; gap:14px;
+    }
+    #preview {
+      width:100%; border-radius:12px; border:2px solid #00ff00;
+      box-shadow:0 0 16px #00ff0044; object-fit:cover;
+    }
+    .opslaan-btn {
+      width:100%; padding:14px;
+      background:#00ff00; color:#000;
+      border:none; border-radius:10px;
+      font-family:inherit; font-size:1rem; font-weight:bold;
+      cursor:pointer;
+    }
+    .opnieuw-btn {
+      width:100%; padding:10px;
+      background:transparent; color:#555;
+      border:1px solid #333; border-radius:10px;
+      font-family:inherit; font-size:.85rem; cursor:pointer;
+    }
+    .success {
+      display:none; text-align:center;
+      flex-direction:column; align-items:center; gap:12px;
+    }
+    .success .big { font-size:60px; }
+    .success h2 { color:#ffff00; font-size:1.3rem; }
+    .success p  { color:#00ff99; font-size:.9rem; }
+
+    input[type=file] { display:none; }
+  </style>
+</head>
+<body>
+
+<h1>🎭 Prank instellen</h1>
+<p>Kies een foto als achtergrond voor de prank-pagina</p>
+
+<!-- Stap 1: kies foto -->
+<label class="kies-btn" for="foto-input" id="kies-wrap">
+  <span class="icon">🖼️</span>
+  <span>Tik hier om een foto te kiezen</span>
+  <span style="font-size:.75rem;color:#555">uit je fotogalerij</span>
+</label>
+<input type="file" id="foto-input" accept="image/*" />
+
+<!-- Stap 2: preview + opslaan -->
+<div id="preview-wrap">
+  <img id="preview" alt="preview" />
+  <button class="opslaan-btn" onclick="opslaan()">✅ Opslaan als achtergrond</button>
+  <button class="opnieuw-btn" onclick="opnieuw()">Andere foto kiezen</button>
+</div>
+
+<!-- Stap 3: succes -->
+<div class="success" id="success">
+  <div class="big">✅</div>
+  <h2>Achtergrond opgeslagen!</h2>
+  <p>Open nu de prank-link op dit apparaat<br>en de foto staat als achtergrond.</p>
+  <button class="opnieuw-btn" style="margin-top:8px" onclick="location.reload()">Andere foto kiezen</button>
+</div>
+
+<script>
+  var input      = document.getElementById('foto-input');
+  var previewEl  = document.getElementById('preview');
+  var previewWrap= document.getElementById('preview-wrap');
+  var kiesWrap   = document.getElementById('kies-wrap');
+  var successEl  = document.getElementById('success');
+  var dataUrl    = null;
+
+  input.addEventListener('change', function() {
+    var file = input.files[0];
+    if (!file) return;
+    var reader = new FileReader();
+    reader.onload = function(e) {
+      dataUrl = e.target.result;
+      previewEl.src = dataUrl;
+      kiesWrap.style.display    = 'none';
+      previewWrap.style.display = 'flex';
+    };
+    reader.readAsDataURL(file);
+  });
+
+  function opslaan() {
+    if (!dataUrl) return;
+    try {
+      localStorage.setItem('prank_bg', dataUrl);
+      previewWrap.style.display = 'none';
+      successEl.style.display   = 'flex';
+    } catch(e) {
+      alert('Opslaan mislukt — foto mogelijk te groot. Probeer een kleinere foto.');
+    }
+  }
+
+  function opnieuw() {
+    dataUrl = null;
+    input.value = '';
+    previewWrap.style.display = 'none';
+    kiesWrap.style.display    = 'flex';
+  }
+</script>
+</body>
+</html>

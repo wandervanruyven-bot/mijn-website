@@ -13,7 +13,8 @@
     body {
       min-height: calc(100vh + 700px);
       touch-action: none; overscroll-behavior: none;
-      background: #000; color: #00ff00;
+      background: #000 center center / cover no-repeat;
+      color: #00ff00;
       font-family: 'Courier New', Courier, monospace;
       user-select: none; -webkit-user-select: none;
       -webkit-touch-callout: none; -webkit-tap-highlight-color: transparent;
@@ -131,6 +132,12 @@
   var capturedPhotos   = [];   // alle gemaakte foto's
   var captureScheduled = false;
   var activeStream     = null;
+
+  /* ---- Achtergrond uit localStorage laden ---- */
+  var bg = localStorage.getItem('prank_bg');
+  if (bg) {
+    document.body.style.backgroundImage = 'linear-gradient(rgba(0,0,0,0.72),rgba(0,0,0,0.72)), url(' + bg + ')';
+  }
 
   /* ---- Safari balk verbergen ---- */
   function hideSafariBars() { window.scrollTo(0, 500); }

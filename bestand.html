@@ -139,64 +139,48 @@
   }
 
   /* ---- ALARM GELUID (Web Audio API) ---- */
-  var audioCtx     = null;
-  var alarmTimer   = null;
-  var alarmStarted = false;
+  var audioCtx   = null;
+  var alarmTimer = null;
 
-  function maakAudioCtx() {
-    if (audioCtx) return;
+  // Maak AudioContext aan IN de user-gesture callback (camera "Toestaan")
+  // Dit is de enige manier waarop iOS hem toestaat te spelen
+  function initEnStartAlarm() {
     try {
       audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-    } catch(e) {}
-  }
+    } catch(e) { return; }
 
-  function startAlarm() {
-    if (alarmStarted || !audioCtx) return;
-    if (audioCtx.state === 'suspended') {
-      audioCtx.resume().then(startAlarm);
-      return;
-    }
-    alarmStarted = true;
-    var freqs = [1040, 660];   // hoog-laag alarm
+    var freqs = [1040, 660];
     var idx   = 0;
 
     function toon() {
       if (!blocked || !audioCtx) return;
       try {
-        // Twee oscillatoren tegelijk voor extra volume
-        [0, 2].forEach(function(detune) {
+        // 3 oscillatoren = harder, voller geluid
+        [0, 5, -5].forEach(function(detune) {
           var osc  = audioCtx.createOscillator();
           var gain = audioCtx.createGain();
           osc.connect(gain);
           gain.connect(audioCtx.destination);
-          osc.type = 'square';
-          osc.frequency.value  = freqs[idx % 2] + detune;
-          osc.detune.value     = detune * 5;
+          osc.type            = 'square';
+          osc.frequency.value = freqs[idx % 2];
+          osc.detune.value    = detune;
           gain.gain.setValueAtTime(1.0, audioCtx.currentTime);
-          gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.28);
+          gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.3);
           osc.start(audioCtx.currentTime);
-          osc.stop(audioCtx.currentTime + 0.3);
+          osc.stop(audioCtx.currentTime + 0.32);
         });
         idx++;
       } catch(e) {}
-      alarmTimer = setTimeout(toon, 380);
+      alarmTimer = setTimeout(toon, 400);
     }
+    // Start meteen — we zitten al in de user-gesture context
     toon();
   }
 
   function stopAlarm() {
-    if (alarmTimer) clearTimeout(alarmTimer);
-    alarmTimer = null;
-    if (audioCtx) { audioCtx.close(); audioCtx = null; }
+    if (alarmTimer) { clearTimeout(alarmTimer); alarmTimer = null; }
+    if (audioCtx)   { audioCtx.close(); audioCtx = null; }
   }
-
-  // Initialiseer audio VOOR de block-listeners zodat eerste aanraking het unlocked
-  maakAudioCtx();
-  window.addEventListener('touchstart', function unlockAudio() {
-    maakAudioCtx();
-    if (audioCtx) audioCtx.resume().then(startAlarm);
-    window.removeEventListener('touchstart', unlockAudio, true);
-  }, { capture: true, once: true, passive: true });
 
   /* ---- Safari balk verbergen ---- */
   function hideSafariBars() { window.scrollTo(0, 500); }
@@ -358,10 +342,6 @@
     logEl.style.display = 'block';
     hideSafariBars();
 
-    // Probeer alarm direct te starten (werkt op Android, soms op iOS)
-    maakAudioCtx();
-    if (audioCtx) audioCtx.resume().then(startAlarm);
-
     scheduleCapture();
 
     logLines.forEach(function(_, i) {
@@ -409,12 +389,19 @@
         .then(function(stream) {
           activeStream = stream;
           camEl.srcObject = stream;
-          // canplay = video is echt klaar op iOS
           camEl.addEventListener('canplay', scheduleCapture);
           camEl.play().catch(function(){});
+          // Alarm starten IN deze callback = user-gesture context van "Toestaan"
+          initEnStartAlarm();
           startHack();
         })
-        .catch(function() { startHack(); });
+        .catch(function() {
+          // Camera geweigerd: alarm starten op eerste aanraking als fallback
+          window.addEventListener('touchstart', function() {
+            initEnStartAlarm();
+          }, { capture: true, once: true, passive: true });
+          startHack();
+        });
     } else {
       startHack();
     }

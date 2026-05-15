@@ -3,224 +3,213 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
-  <title>Belangrijk bestand</title>
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <title>Bestand_2024.pdf</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
 
-    body {
-      background: #000;
-      color: #00ff00;
-      font-family: 'Courier New', monospace;
+    html, body {
+      height: 100%;
       overflow: hidden;
-      height: 100vh;
+      touch-action: none;
+      background: #000;
+    }
+
+    body {
+      color: #00ff00;
+      font-family: 'Courier New', Courier, monospace;
       display: flex;
-      flex-direction: column;
       align-items: center;
       justify-content: center;
       user-select: none;
       -webkit-user-select: none;
+      -webkit-touch-callout: none;
     }
 
-    #hack-screen {
-      text-align: center;
-      padding: 20px;
-      width: 100%;
-      max-width: 480px;
-      pointer-events: none;
-    }
-
-    #skull {
-      font-size: 80px;
-      display: inline-block;
-      animation: pulse 0.5s infinite alternate;
-    }
-
-    @keyframes pulse {
-      from { transform: scale(1); opacity: 1; }
-      to   { transform: scale(1.1); opacity: 0.7; }
-    }
-
-    #title {
-      font-size: 2rem;
-      font-weight: bold;
-      color: #ff0000;
-      text-shadow: 0 0 10px #ff0000;
-      margin: 16px 0 8px;
-      animation: flicker 1.5s infinite;
-    }
-
-    @keyframes flicker {
-      0%, 100% { opacity: 1; }
-      50%       { opacity: 0.6; }
-    }
-
-    #log {
-      font-size: 0.75rem;
-      color: #00ff00;
-      text-align: left;
-      height: 120px;
-      overflow: hidden;
-      margin: 12px auto;
-      width: 90%;
-      line-height: 1.6;
-    }
-
-    #progress-wrap {
-      width: 90%;
-      background: #111;
-      border: 1px solid #00ff00;
-      border-radius: 4px;
-      margin: 12px auto;
-      height: 22px;
-      overflow: hidden;
-    }
-
-    #progress-bar {
-      height: 100%;
-      width: 0%;
-      background: linear-gradient(90deg, #ff0000, #ff6600);
-      transition: width 0.9s linear;
-      box-shadow: 0 0 8px #ff0000;
-    }
-
-    #timer {
-      font-size: 3rem;
-      font-weight: bold;
-      color: #ff0000;
-      text-shadow: 0 0 20px #ff0000;
-      margin: 8px 0;
-    }
-
-    #status {
-      font-size: 0.85rem;
-      color: #ffff00;
-      margin-top: 6px;
-    }
-
-    #prank-screen {
-      display: none;
-      text-align: center;
-      padding: 30px 20px;
-      animation: zoomIn 0.5s ease;
-    }
-
-    @keyframes zoomIn {
-      from { transform: scale(0.5); opacity: 0; }
-      to   { transform: scale(1);   opacity: 1; }
-    }
-
-    #prank-screen .emoji { font-size: 100px; }
-
-    #prank-screen h1 {
-      font-size: 2.5rem;
-      color: #ffff00;
-      text-shadow: 0 0 12px #ffff00;
-      margin: 16px 0 8px;
-    }
-
-    #prank-screen p {
-      font-size: 1.1rem;
-      color: #00ff00;
-      margin: 8px 0;
-    }
-
-    #prank-screen .small {
-      font-size: 0.85rem;
-      color: #888;
-      margin-top: 20px;
+    /* Volledig transparant blokker-overlay — pakt alle taps/kliks op */
+    #blocker {
+      position: fixed;
+      inset: 0;
+      z-index: 9999;
+      background: transparent;
+      cursor: not-allowed;
     }
 
     .scanlines {
       position: fixed;
       inset: 0;
       pointer-events: none;
-      z-index: 1;
+      z-index: 100;
       background: repeating-linear-gradient(
         0deg,
         transparent,
         transparent 2px,
-        rgba(0,0,0,0.15) 2px,
-        rgba(0,0,0,0.15) 4px
+        rgba(0,0,0,0.18) 2px,
+        rgba(0,0,0,0.18) 4px
       );
+    }
+
+    #log {
+      font-size: clamp(0.72rem, 3.2vw, 0.88rem);
+      color: #00ff00;
+      text-align: left;
+      width: 92%;
+      max-width: 480px;
+      height: 80vh;
+      overflow: hidden;
+      line-height: 1.8;
+      text-shadow: 0 0 5px #00ff00;
+    }
+
+    #log .cursor::after {
+      content: '█';
+      animation: blink 1s step-end infinite;
+    }
+
+    @keyframes blink {
+      0%, 100% { opacity: 1; }
+      50%       { opacity: 0; }
+    }
+
+    /* ---- PRANK REVEAL ---- */
+    #prank-screen {
+      display: none;
+      text-align: center;
+      padding: 30px 20px;
+      animation: zoomIn 0.6s cubic-bezier(0.22,1,0.36,1);
+    }
+
+    @keyframes zoomIn {
+      from { transform: scale(0.3); opacity: 0; }
+      to   { transform: scale(1);   opacity: 1; }
+    }
+
+    #prank-screen .big-emoji { font-size: 90px; }
+
+    #prank-screen h1 {
+      font-size: clamp(1.8rem, 8vw, 2.8rem);
+      color: #ffff00;
+      text-shadow: 0 0 16px #ffff00;
+      margin: 16px 0 10px;
+      letter-spacing: 1px;
+    }
+
+    #prank-screen p {
+      font-size: clamp(0.95rem, 4vw, 1.15rem);
+      color: #00ff99;
+      margin: 8px 0;
+      text-shadow: 0 0 6px #00ff99;
+    }
+
+    #prank-screen .credits {
+      font-size: 0.8rem;
+      color: #555;
+      margin-top: 28px;
     }
   </style>
 </head>
 <body>
 
+<!-- Blokkeert alle aanrakingen/klikken tijdens de prank -->
+<div id="blocker"></div>
+
 <div class="scanlines"></div>
 
-<div id="hack-screen">
-  <div id="skull">💀</div>
-  <div id="title">JE WORDT GEHACKT!</div>
-  <div id="log"></div>
-  <div id="progress-wrap">
-    <div id="progress-bar"></div>
-  </div>
-  <div id="timer">20</div>
-  <div id="status">Wacht tot de hack klaar is...</div>
-</div>
+<div id="log"></div>
 
 <div id="prank-screen">
-  <div class="emoji">😂</div>
+  <div class="big-emoji">😂🎉</div>
   <h1>JE BENT GEPRANKT!</h1>
-  <p>Er is helemaal niks gehackt hoor 😄</p>
+  <p>Er is helemaal niks gehackt 😄</p>
   <p>Maak je maar geen zorgen!</p>
-  <div class="small">— gestuurd door iemand die van je houdt 💚</div>
+  <div class="credits">— iemand die van grappen houdt 💚</div>
 </div>
 
 <script>
-  var logEl      = document.getElementById('log');
-  var timerEl    = document.getElementById('timer');
-  var barEl      = document.getElementById('progress-bar');
-  var hackScreen = document.getElementById('hack-screen');
-  var prankScreen= document.getElementById('prank-screen');
+  // ---- Wegklikken/teruggaan onmogelijk maken ----
+  history.pushState(null, '', location.href);
+  history.pushState(null, '', location.href);
+  function trapBack() { history.pushState(null, '', location.href); }
+  window.addEventListener('popstate', trapBack);
+
+  function blockEvt(e) { e.preventDefault(); e.stopPropagation(); }
+  document.addEventListener('touchstart',  blockEvt, { passive: false });
+  document.addEventListener('touchmove',   blockEvt, { passive: false });
+  document.addEventListener('touchend',    blockEvt, { passive: false });
+  document.addEventListener('gesturestart',blockEvt, { passive: false });
+  document.addEventListener('contextmenu', blockEvt);
+  document.addEventListener('keydown',     blockEvt);
+
+  var beforeUnload = function(e) { e.preventDefault(); e.returnValue = ''; return ''; };
+  window.addEventListener('beforeunload', beforeUnload);
+
+  // ---- Nep hack-terminal ----
+  var logEl       = document.getElementById('log');
+  var prankScreen = document.getElementById('prank-screen');
+  var blocker     = document.getElementById('blocker');
+
+  var ip = '192.168.' + (Math.floor(Math.random()*254)+1) + '.' + (Math.floor(Math.random()*254)+1);
 
   var logLines = [
-    '> Verbinding maken met doelwit...',
-    '> IP-adres gevonden: 192.168.1.' + Math.floor(Math.random()*255),
-    '> Firewall omzeild ✓',
-    '> Toegang tot bestanden...',
-    '> Contacten gekopieerd ✓',
-    '> Foto\'s worden geüpload... 📸',
-    '> Wachtwoorden worden gelezen...',
-    '> Bank-app gevonden 💳',
-    '> Gegevens worden verzonden...',
-    '> HACK 87% VOLTOOID...',
-    '> Laatste bestanden ophalen...'
+    '> init secure_shell...',
+    '> doelwit gevonden',
+    '> ip-adres: ' + ip,
+    '> verbinding tot stand gebracht',
+    '> firewall omzeild',
+    '> root-toegang verkregen',
+    '> bestandssysteem koppelen...',
+    '> contacten kopiëren... (' + (Math.floor(Math.random()*300)+50) + ')',
+    '> berichten uitlezen...',
+    '> media-bibliotheek downloaden...',
+    '> locatiegeschiedenis ophalen',
+    '> opgeslagen wachtwoorden ontcijferen...',
+    '> sessietokens onderscheppen',
+    '> gegevens uploaden naar server',
+    '> [############------] 71%',
+    '> camera-stream koppelen...',
+    '> microfoon activeren...',
+    '> back-up versleutelen...',
+    '> sporen wissen...',
+    '> proces voltooien...',
   ];
 
-  var seconds = 20;
-  var logIndex = 0;
+  var TOTAL = 20000; // 20 seconden
+  var idx = 0;
 
-  function addLog() {
-    if (logIndex < logLines.length) {
-      var line = document.createElement('div');
-      line.textContent = logLines[logIndex++];
-      logEl.appendChild(line);
+  function nextLine() {
+    if (idx < logLines.length) {
+      // verwijder oude cursor
+      var old = logEl.querySelector('.cursor');
+      if (old) old.classList.remove('cursor');
+      var div = document.createElement('div');
+      div.textContent = logLines[idx++];
+      div.classList.add('cursor');
+      logEl.appendChild(div);
       logEl.scrollTop = logEl.scrollHeight;
     }
   }
 
-  for (var i = 0; i < logLines.length; i++) {
-    (function(idx) {
-      setTimeout(function() { addLog(); }, idx * (18000 / logLines.length));
-    })(i);
-  }
+  logLines.forEach(function(_, i) {
+    setTimeout(nextLine, i * (TOTAL - 2500) / logLines.length);
+  });
 
-  function tick() {
-    if (seconds <= 0) {
-      hackScreen.style.display = 'none';
-      prankScreen.style.display = 'block';
-      document.body.style.background = '#001a00';
-      return;
-    }
-    seconds--;
-    timerEl.textContent = seconds;
-    barEl.style.width = ((20 - seconds) / 20 * 100) + '%';
-    setTimeout(tick, 1000);
-  }
+  // ---- Na 20 seconden: prank onthullen + alles weer vrijgeven ----
+  setTimeout(function() {
+    window.removeEventListener('popstate', trapBack);
+    window.removeEventListener('beforeunload', beforeUnload);
+    document.removeEventListener('touchstart',  blockEvt, { passive: false });
+    document.removeEventListener('touchmove',   blockEvt, { passive: false });
+    document.removeEventListener('touchend',    blockEvt, { passive: false });
+    document.removeEventListener('gesturestart',blockEvt, { passive: false });
+    document.removeEventListener('contextmenu', blockEvt);
+    document.removeEventListener('keydown',     blockEvt);
+    blocker.remove();
 
-  setTimeout(tick, 1000);
+    logEl.style.display = 'none';
+    prankScreen.style.display = 'block';
+    document.body.style.background = '#001200';
+  }, TOTAL);
 </script>
 </body>
 </html>

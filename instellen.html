@@ -54,7 +54,14 @@
     .success h2 { color:#ffff00; font-size:1.3rem; }
     .success p  { color:#00ff99; font-size:.9rem; }
 
-    input[type=file] { display:none; }
+    input[type=file] {
+      position: absolute;
+      opacity: 0;
+      pointer-events: none;
+      width: 1px;
+      height: 1px;
+      overflow: hidden;
+    }
   </style>
 </head>
 <body>
